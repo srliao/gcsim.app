@@ -1,3 +1,4 @@
+import { StatusUptime } from "./DebugView";
 import { DebugRow, DebugItem, eventColor, strFrameWithSec } from "./parse";
 
 type LogDetails = {
@@ -15,7 +16,10 @@ export function parseLogV2(
   team: string[],
   log: string,
   selected: string[]
-) {
+): {
+  rows: DebugRow[];
+  buffs: StatusUptime;
+} {
   let activeIndex = team.findIndex((e) => e === active);
   activeIndex++; // +1 since we set the first field to be sim slot
 
@@ -40,7 +44,7 @@ export function parseLogV2(
   } catch (e) {
     console.warn("error parsing debug log (v2)");
     console.warn(e);
-    return [];
+    return { rows: [], buffs: {} };
   }
 
   let rowKey = 0;
@@ -288,5 +292,32 @@ export function parseLogV2(
 
   //   console.log(result);
 
-  return result;
+  const b = calcStatusUptime(lines);
+
+  return { rows: result, buffs: b };
+}
+
+export function calcStatusUptime(rows: LogDetails[]): StatusUptime {
+  var res: StatusUptime = {};
+
+  rows.forEach((r, i) => {
+    if (r.event !== "status") {
+      return;
+    }
+    const key = r.logs["key"];
+    if (key === "") {
+      return;
+    }
+
+    if (!(key in res)) {
+      res[key] = [];
+    }
+
+    res[key].push({
+      start: r.frame,
+      end: r.ended,
+    });
+  });
+
+  return res;
 }

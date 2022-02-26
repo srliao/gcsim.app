@@ -1,15 +1,14 @@
-import { Button, ButtonGroup, Tab, Tabs } from "@blueprintjs/core";
+import { Button, Tab, Tabs } from "@blueprintjs/core";
 import React from "react";
 import { Config } from "./Config";
 import { SimResults } from "./DataType";
-import { Debugger } from "./DebugView";
+import { Debugger, StatusUptime } from "./DebugView";
 import { Details } from "./Details";
 import { Options, OptionsProp } from "./Options";
 import { DebugRow, parseLog } from "./parse";
 import Summary from "./Summary";
-import Share, { ShareProps } from "./Share";
-import { parseLogV2 } from "./parsev2";
-import { Viewport } from "../Viewport";
+import Share from "./Share";
+import { calcStatusUptime, parseLogV2 } from "./parsev2";
 
 const opts = [
   "procs",
@@ -53,6 +52,7 @@ type ViewProps = {
   handleSetSelected: (next: string[]) => void;
   data: SimResults;
   parsed: DebugRow[];
+  buffs: StatusUptime;
   handleClose: () => void;
 };
 
@@ -120,26 +120,18 @@ function ViewOnly(props: ViewProps) {
             ),
             config: <Config data={props.data} />,
             debug: (
-              <Debugger data={props.parsed} team={props.data.char_names} />
+              <Debugger
+                data={props.parsed}
+                team={props.data.char_names}
+                handleOpenOpts={() => setOptOpen(true)}
+                buffs={props.buffs}
+              />
             ),
             details: <Details data={props.data} />,
             share: <Share data={props.data} />,
           }[tabID]
         }
       </div>
-      {tabID === "debug" ? (
-        <div className="w-full pl-2 pr-2">
-          <ButtonGroup fill>
-            <Button
-              onClick={() => setOptOpen(true)}
-              icon="cog"
-              intent="primary"
-            >
-              Debug Settings
-            </Button>
-          </ButtonGroup>
-        </div>
-      ) : null}
 
       <Options {...optProps} />
     </div>
@@ -158,49 +150,18 @@ export function Viewer(props: ViewerProps) {
   //string
   console.log(props.data);
 
-  // if (!valid) {
-  //   console.log(validate.errors);
-  //   return (
-  //     <div
-  //       className={
-  //         props.className +
-  //         " p-4 rounded-lg bg-gray-800 flex flex-col w-full place-content-center items-center"
-  //       }
-  //     >
-  //       <div className="mb-4 text-center">
-  //         The data you have provided is not a valid format.{" "}
-  //         <span className="font-bold">
-  //           Please make sure you are using gcsim version 0.4.25 or higher.
-  //         </span>
-  //         <br />
-  //         <br />
-  //         Please click the close button and upload a valid file.
-  //       </div>
-  //       <div>
-  //         <Button intent="danger" icon="cross" onClick={props.handleClose}>
-  //           Click Here To Close
-  //         </Button>
-  //       </div>
-  //       <div className="mt-8 rounded-md p-4 bg-gray-600">
-  //         <p>
-  //           If you think this error is invalid, please show the following
-  //           message to the developers
-  //         </p>
-  //         <pre>{JSON.stringify(validate.errors, null, 2)}</pre>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   let parsed: DebugRow[];
+  let buffs: StatusUptime;
   if (props.data.v2) {
     console.log("parsing as v2: " + props.data.debug);
-    parsed = parseLogV2(
+    const x = parseLogV2(
       props.data.active_char,
       props.data.char_names,
       props.data.debug,
       selected
     );
+    parsed = x.rows;
+    buffs = x.buffs;
   } else {
     console.log("parsing as v1: " + props.data.debug);
     parsed = parseLog(
@@ -209,6 +170,7 @@ export function Viewer(props: ViewerProps) {
       props.data.debug,
       selected
     );
+    buffs = {};
   }
 
   console.log(parsed);
@@ -224,6 +186,7 @@ export function Viewer(props: ViewerProps) {
     data: props.data,
     parsed: parsed,
     handleClose: props.handleClose,
+    buffs: buffs,
   };
 
   return <ViewOnly {...viewProps} />;
